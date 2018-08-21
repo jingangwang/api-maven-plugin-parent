@@ -6,27 +6,22 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * 状态码定义
  * @author wjg
- * @date 2018/8/14 14:49
+ * @date 2018/8/14 14:41
  */
 @Target(ElementType.ANNOTATION_TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Example {
+public @interface ApiResponse {
     /**
-     * 请求示例
+     * 返回码
      * @return
      */
-    String param() default "";
+   String code() default "";
 
     /**
-     * 请求成功示例
+     * 返回状态码的描述
      * @return
      */
-    String success() default "";
-
-    /**
-     * 请求失败示例
-     * @return
-     */
-    String error() default "";
+   String msg() default "";
 }

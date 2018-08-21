@@ -38,19 +38,25 @@ public @interface Api {
      * 入参数组
      * @return
      */
-    Column[] params() default {};
+    ApiColumn[] params() default {};
 
     /**
      * 返回值数组
      * @return
      */
-    Column[] returns() default {};
+    ApiColumn[] returns() default {};
+
+    /**
+     * 返回的状态码描述
+     * @return
+     */
+    ApiResponse[] responses() default {};
 
     /**
      * 请求示例
      * @return
      */
-    Example example() default @Example;
+    ApiExample example() default @ApiExample;
 
     /**
      * 备注

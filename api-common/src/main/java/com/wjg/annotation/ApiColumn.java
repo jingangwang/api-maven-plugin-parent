@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.ANNOTATION_TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Column {
+public @interface ApiColumn {
     /**
      * 名称
      * @return
@@ -47,5 +47,5 @@ public @interface Column {
      * 如果该字段是对象的话，则需要指定对象的各个字段
      * @return
      */
-    DataColumn[] dataRules() default {};
+    ApiDataColumn[] dataRules() default {};
 }

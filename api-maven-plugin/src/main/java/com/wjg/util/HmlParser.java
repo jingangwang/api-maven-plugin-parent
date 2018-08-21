@@ -55,7 +55,7 @@ public class HmlParser {
                     continue;
                 }
                 //如果没有配置模块，过滤
-                if (!c.isAnnotationPresent(Domain.class)) {
+                if (!c.isAnnotationPresent(ApiDomain.class)) {
                     continue;
                 }
                 //如果配置了ApiIgnore忽律
@@ -74,8 +74,8 @@ public class HmlParser {
                 //可以给每个模块定制一个独立的子域名去访问，自己的注解
                 String domain = null;
                 String desc = null;
-                if (c.isAnnotationPresent(Domain.class)) {
-                    Annotation a = c.getAnnotation(Domain.class);
+                if (c.isAnnotationPresent(ApiDomain.class)) {
+                    Annotation a = c.getAnnotation(ApiDomain.class);
 
                     Method m = a.getClass().getMethod("value", null);
                     domain = m.invoke(a).toString();
@@ -129,11 +129,12 @@ public class HmlParser {
                     String createtime = null;
                     String baseUrl = "http://" + (null == domain || "".equals(domain) ? "" : (domain + ".")) + host + namespace;
 
-                    Example example = null;
+                    ApiExample apiExample = null;
 
                     Map<String, String> paramDesc = new HashMap<String, String>();
                     List<Object[]> returnList = new ArrayList<Object[]>();
                     List<String[]> pars = new ArrayList<String[]>();
+                    List<String[]> reps = new ArrayList<String[]>();
 
                     //获取我们自定义的API配置信息
                     if (m.isAnnotationPresent(Api.class)) {
@@ -152,11 +153,10 @@ public class HmlParser {
                         createtime = cm.invoke(a).toString();
                         //入参
                         Method pm = a.getClass().getMethod("params", null);
-                        Column[] params = (Column[]) pm.invoke(a);
-
+                        ApiColumn[] params = (ApiColumn[]) pm.invoke(a);
 
                         //开始扫描方法上面参数
-                        for (Column param : params) {
+                        for (ApiColumn param : params) {
                             paramDesc.put(param.name(), param.desc());
 
                             pars.add(new String[]{
@@ -168,9 +168,9 @@ public class HmlParser {
                         }
                         //出参
                         Method rm = a.getClass().getMethod("returns", null);
-                        Column[] returns = (Column[]) rm.invoke(a);
+                        ApiColumn[] returns = (ApiColumn[]) rm.invoke(a);
 
-                        for (Column r : returns) {
+                        for (ApiColumn r : returns) {
                             returnList.add(new Object[]{
                                     r.name(),
                                     r.type(),
@@ -179,12 +179,19 @@ public class HmlParser {
                                     (StringUtils.isEmpty(r.desc())?"无":r.desc()),
                                     r.dataRules()});
                         }
+                        //状态码
+                        Method rp = a.getClass().getMethod("responses",null);
+                        ApiResponse[] responses = (ApiResponse[])rp.invoke(a);
 
+                        for (ApiResponse response: responses ) {
+                            reps.add(new String[]{response.code(),response.msg()});
+                        }
+                        //例子
                         Method dem = a.getClass().getMethod("example", null);
                         Object o = dem.invoke(a);
 
                         if (o != null) {
-                            example = (Example) o;
+                            apiExample = (ApiExample) o;
                         }
                     }
 
@@ -196,7 +203,7 @@ public class HmlParser {
                     eleInterface.select(".author").html(StringUtils.isEmpty(author) ? "未描述作者" : author);
                     eleInterface.select(".createtime").html(StringUtils.isEmpty(createtime) ? "未描述最后修改时间" : createtime);
 
-                    //如果最终扫描出来结果，参数个数为0，表示访问这个接口是不需要带参数的
+                    //填充请求参数
                     if (pars.size() == 0) {
                         eleInterface.select(".params table").html("无");
                     }
@@ -214,7 +221,7 @@ public class HmlParser {
                                         arr[4]));
                     }
 
-                    //处理返回结果说明
+                    //填充返回结果
                     if (returnList.size() == 0) {
                         eleInterface.select(".returns table").html("");
                     }
@@ -230,8 +237,8 @@ public class HmlParser {
                                         arr[3].toString(),
                                         arr[4].toString()));
                         //处理数据字段
-                        DataColumn[] dataColumns = (DataColumn[])arr[5];
-                        for (DataColumn dataColumn : dataColumns) {
+                        ApiDataColumn[] dataColumns = (ApiDataColumn[])arr[5];
+                        for (ApiDataColumn dataColumn : dataColumns) {
                             eleInterface.select(".returns table").append(
                                     StringUtils.format(doc.select("#returnItem").html(),
                                             (((index + 1) % 2 == 0) ? "odd" : "eve"),
@@ -242,22 +249,37 @@ public class HmlParser {
                                             dataColumn.desc()));
                         }
                     }
-                    //处理例子
-                    if (example != null) {
-                        //添加返回说明
-                        eleInterface.select(".returns").append(doc.select("#demoDetailItem").html());
-                        if (!StringUtils.isEmpty(example.param())) {
+
+                    //填充返回码
+                    if (reps.size() == 0) {
+                        eleInterface.select(".responses table").html("无");
+                    }
+
+                    for (int index = 0; index < reps.size(); index++) {
+                        String[] arr = reps.get(index);
+                        eleInterface.select(".responses table").append(
+                                StringUtils.format(doc.select("#responseItem").html(),
+                                        (((index + 1) % 2 == 0) ? "odd" : "eve"),
+                                        arr[0],
+                                        arr[1]
+                                        ));
+                    }
+
+                    //填充例子
+                    if (apiExample != null) {
+
+                        if (!StringUtils.isEmpty(apiExample.param())) {
                             try{
-                                String json = JSON.toJSONString(JSON.parse(example.param()), true);
+                                String json = JSON.toJSONString(JSON.parse(apiExample.param()), true);
                                 json = json.replaceAll("\n", "<br/>").replaceAll("\t", "&nbsp;&nbsp;&nbsp;");
                                 eleInterface.select(".item-bd").append(com.wjg.util.StringUtils.format(doc.select("#demoItem").html(), json));
                             }catch (Exception e){
-                                eleInterface.select(".item-bd").append(com.wjg.util.StringUtils.format(doc.select("#demoItem").html(), example.param()));
+                                eleInterface.select(".item-bd").append(com.wjg.util.StringUtils.format(doc.select("#demoItem").html(), apiExample.param()));
                             }
 
                         }
-                        if (!StringUtils.isEmpty(example.success())) {
-                            String json = example.success();
+                        if (!StringUtils.isEmpty(apiExample.success())) {
+                            String json = apiExample.success();
                             try {
                                 json = JSON.toJSONString(JSON.parse(json), true);
                                 json = json.replaceAll("\n", "<br/>").replaceAll("\t", "&nbsp;&nbsp;&nbsp;");
@@ -266,8 +288,8 @@ public class HmlParser {
                             }
                             eleInterface.select(".item-bd").append(com.wjg.util.StringUtils.format(doc.select("#successItem").html(), json));
                         }
-                        if (!StringUtils.isEmpty(example.error())) {
-                            String json = example.error();
+                        if (!StringUtils.isEmpty(apiExample.error())) {
+                            String json = apiExample.error();
                             try {
                                 json = JSON.toJSONString(JSON.parse(json), true);
                                 json = json.replaceAll("\n", "<br/>").replaceAll("\t", "&nbsp;&nbsp;&nbsp;");

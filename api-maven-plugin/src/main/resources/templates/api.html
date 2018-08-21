@@ -233,7 +233,7 @@ table tr.odd {
 		<div class="box-notice">
 			<div class="red notice-title">版本更新</div>
 			<ul class="notice-body">
-				<li>2018.8.20创建接口文档v1.0版本</li>
+				<li>初始版本V1.0</li>
 			</ul>
 		</div>
 		<div class="interface">
@@ -337,6 +337,16 @@ table tr.odd {
 							</tr>
 						</table>
 					</div>
+
+					<div class='item-lft'>状态码说明</div>
+					<div class='item-rt responses'>
+						<table width='100%'>
+							<tr>
+								<th width='15%'>状态码</th>
+								<th width='85%'>描述</th>
+							</tr>
+						</table>
+					</div>
 				</div>
 			</div>
 		</script>
@@ -385,6 +395,13 @@ table tr.odd {
 				<td class='return-maxLength'>{3}</td>
 				<td class='return-required'>{4}</td>
 				<td class='return-desc'>{5}</td>
+			</tr>
+		</script>
+
+		<script type="text/template" id="responseItem">
+			<tr class='{0}'>
+				<td>{1}</td>
+				<td>{2}</td>
 			</tr>
 		</script>
 		
