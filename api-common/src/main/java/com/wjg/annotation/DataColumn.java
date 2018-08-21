@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.ANNOTATION_TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Rule {
+public @interface DataColumn {
     /**
      * 名称
      * @return
@@ -26,9 +26,20 @@ public @interface Rule {
     String type() default "String";
 
     /**
+     * 最大长度
+     * @return
+     */
+    String maxLength() default "";
+
+    /**
+     * 是否必填
+     * @return
+     */
+    boolean required() default false;
+
+    /**
      * 字段描述
      * @return
      */
     String desc() default "";
-
 }

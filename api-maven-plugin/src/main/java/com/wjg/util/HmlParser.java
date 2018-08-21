@@ -2,7 +2,6 @@ package com.wjg.util;
 
 import com.alibaba.fastjson.JSON;
 import com.wjg.annotation.*;
-import com.wjg.constants.DocConstants;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -56,7 +55,7 @@ public class HmlParser {
                     continue;
                 }
                 //如果没有配置模块，过滤
-                if (!c.isAnnotationPresent(Model.class)) {
+                if (!c.isAnnotationPresent(Domain.class)) {
                     continue;
                 }
                 //如果配置了ApiIgnore忽律
@@ -75,8 +74,8 @@ public class HmlParser {
                 //可以给每个模块定制一个独立的子域名去访问，自己的注解
                 String domain = null;
                 String desc = null;
-                if (c.isAnnotationPresent(Model.class)) {
-                    Annotation a = c.getAnnotation(Model.class);
+                if (c.isAnnotationPresent(Domain.class)) {
+                    Annotation a = c.getAnnotation(Domain.class);
 
                     Method m = a.getClass().getMethod("value", null);
                     domain = m.invoke(a).toString();
@@ -133,7 +132,8 @@ public class HmlParser {
                     Example example = null;
 
                     Map<String, String> paramDesc = new HashMap<String, String>();
-                    List<String[]> returnList = new ArrayList<String[]>();
+                    List<Object[]> returnList = new ArrayList<Object[]>();
+                    List<String[]> pars = new ArrayList<String[]>();
 
                     //获取我们自定义的API配置信息
                     if (m.isAnnotationPresent(Api.class)) {
@@ -150,19 +150,34 @@ public class HmlParser {
 
                         Method cm = a.getClass().getMethod("createTime", null);
                         createtime = cm.invoke(a).toString();
-
+                        //入参
                         Method pm = a.getClass().getMethod("params", null);
-                        Rule[] params = (Rule[]) pm.invoke(a);
+                        Column[] params = (Column[]) pm.invoke(a);
 
-                        for (Rule param : params) {
+
+                        //开始扫描方法上面参数
+                        for (Column param : params) {
                             paramDesc.put(param.name(), param.desc());
+
+                            pars.add(new String[]{
+                                    param.name(),
+                                    param.type(),
+                                    param.maxLength(),
+                                    (param.required() ? "是" : "否"),
+                                    (StringUtils.isEmpty(param.desc())? "无" : param.desc())});
                         }
-
+                        //出参
                         Method rm = a.getClass().getMethod("returns", null);
-                        Rule[] returns = (Rule[]) rm.invoke(a);
+                        Column[] returns = (Column[]) rm.invoke(a);
 
-                        for (Rule r : returns) {
-                            returnList.add(new String[]{r.name(), r.type(), r.desc()});
+                        for (Column r : returns) {
+                            returnList.add(new Object[]{
+                                    r.name(),
+                                    r.type(),
+                                    r.maxLength(),
+                                    (r.required()?"是":"否"),
+                                    (StringUtils.isEmpty(r.desc())?"无":r.desc()),
+                                    r.dataRules()});
                         }
 
                         Method dem = a.getClass().getMethod("example", null);
@@ -181,57 +196,14 @@ public class HmlParser {
                     eleInterface.select(".author").html(StringUtils.isEmpty(author) ? "未描述作者" : author);
                     eleInterface.select(".createtime").html(StringUtils.isEmpty(createtime) ? "未描述最后修改时间" : createtime);
 
-                    List<String> paramsType = new ArrayList<String>();
-
-                    for (Class param : m.getParameterTypes()) {
-                        paramsType.add(param.getSimpleName());
-                    }
-
-
-                    //开始扫描方法上面参数
-                    List<String[]> params = new ArrayList<String[]>();
-                    int i = 0;
-                    for (Annotation[] anns : m.getParameterAnnotations()) {
-                        for (Annotation ann : anns) {
-                            //spring的参数名字定义，有两种形式，第一种就是
-                            if (ann instanceof RequestParam) {
-
-                                //获取参数是否必填
-                                boolean required = (Boolean) ann.getClass().getMethod("required").invoke(ann);
-                                //获取参数的名字
-                                String pname = ann.getClass().getMethod("value", null).invoke(ann).toString();
-                                //获取是否有默认值
-                                String dft = ann.getClass().getMethod("defaultValue").invoke(ann).toString();
-                                if (dft.startsWith("\n")) {
-                                    dft = null;
-                                }
-                                params.add(new String[]{
-                                        pname,
-                                        DocConstants.types.get(paramsType.get(i).toLowerCase()),
-                                        (required ? "是" : "否"),
-                                        (StringUtils.isEmpty(dft) ? "无" : dft),
-                                        (paramDesc.get(pname) == null ? "无" : paramDesc.get(pname))});
-                                //直接配置在路径上的
-                            } else if (ann instanceof PathVariable) {
-                                String pname = ann.getClass().getMethod("value", null).invoke(ann).toString();
-                                params.add(new String[]{
-                                        pname,
-                                        DocConstants.types.get(paramsType.get(i).toLowerCase()),
-                                        "是",
-                                        "无",
-                                        (paramDesc.get(pname) == null ? "无" : paramDesc.get(pname))});
-                            }
-                        }
-                        i++;
-                    }
                     //如果最终扫描出来结果，参数个数为0，表示访问这个接口是不需要带参数的
-                    if (params.size() == 0) {
+                    if (pars.size() == 0) {
                         eleInterface.select(".params table").html("无");
                     }
 
                     //如果有参数，填充到我们模板中，最终生成html
-                    for (int index = 0; index < params.size(); index++) {
-                        String[] arr = params.get(index);
+                    for (int index = 0; index < pars.size(); index++) {
+                        String[] arr = pars.get(index);
                         eleInterface.select(".params table").append(
                                 StringUtils.format(doc.select("#paramItem").html(),
                                         (((index + 1) % 2 == 0) ? "odd" : "eve"),
@@ -242,29 +214,47 @@ public class HmlParser {
                                         arr[4]));
                     }
 
-
+                    //处理返回结果说明
                     if (returnList.size() == 0) {
                         eleInterface.select(".returns table").html("");
                     }
 
                     for (int index = 0; index < returnList.size(); index++) {
-                        String[] arr = returnList.get(index);
+                        Object[] arr = returnList.get(index);
                         eleInterface.select(".returns table").append(
                                 StringUtils.format(doc.select("#returnItem").html(),
                                         (((index + 1) % 2 == 0) ? "odd" : "eve"),
-                                        arr[0],
-                                        arr[1],
-                                        arr[2]));
+                                        arr[0].toString(),
+                                        arr[1].toString(),
+                                        arr[2].toString(),
+                                        arr[3].toString(),
+                                        arr[4].toString()));
+                        //处理数据字段
+                        DataColumn[] dataColumns = (DataColumn[])arr[5];
+                        for (DataColumn dataColumn : dataColumns) {
+                            eleInterface.select(".returns table").append(
+                                    StringUtils.format(doc.select("#returnItem").html(),
+                                            (((index + 1) % 2 == 0) ? "odd" : "eve"),
+                                            "&nbsp;&nbsp;&nbsp;&nbsp;└ "+ dataColumn.name(),
+                                            dataColumn.type(),
+                                            dataColumn.maxLength(),
+                                            dataColumn.required(),
+                                            dataColumn.desc()));
+                        }
                     }
-
-
-                    //demo
+                    //处理例子
                     if (example != null) {
                         //添加返回说明
                         eleInterface.select(".returns").append(doc.select("#demoDetailItem").html());
-
                         if (!StringUtils.isEmpty(example.param())) {
-                            eleInterface.select(".item-bd").append(com.wjg.util.StringUtils.format(doc.select("#demoItem").html(), baseUrl + url + "?" + example.param()));
+                            try{
+                                String json = JSON.toJSONString(JSON.parse(example.param()), true);
+                                json = json.replaceAll("\n", "<br/>").replaceAll("\t", "&nbsp;&nbsp;&nbsp;");
+                                eleInterface.select(".item-bd").append(com.wjg.util.StringUtils.format(doc.select("#demoItem").html(), json));
+                            }catch (Exception e){
+                                eleInterface.select(".item-bd").append(com.wjg.util.StringUtils.format(doc.select("#demoItem").html(), example.param()));
+                            }
+
                         }
                         if (!StringUtils.isEmpty(example.success())) {
                             String json = example.success();
@@ -300,7 +290,7 @@ public class HmlParser {
             }
 
 
-            //输出到我们的磁盘
+            //输出到指定目录
             try {
                 OutputStreamWriter ow = new OutputStreamWriter(new FileOutputStream(new File(targetFile)), "utf-8");
                 ow.write(doc.html());

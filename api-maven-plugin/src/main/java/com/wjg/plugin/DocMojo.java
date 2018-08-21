@@ -43,16 +43,22 @@ public class DocMojo extends AbstractMojo{
     @Parameter(property = "libPath")
     private String libPath;
     /**
+     * 域名或者IP地址
+     */
+    @Parameter(property = "host")
+    private String host;
+    /**
      * url的类加载器
      */
     private URLClassLoader urlClassLoader;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
-        this.getLog().info("--- 参数列表");
+        this.getLog().info("------- 参数列表 -------");
         this.getLog().info("classPath=" + classPath);
         this.getLog().info("libDir=" + libPath);
         this.getLog().info("basePackage=" + basePackage);
         this.getLog().info("targetFile=" + targetFile);
+        this.getLog().info("host=" + host);
         //1、从类路径下扫描出所有的.class
         try {
             String cPath = new URL("file",null,new File(classPath).getCanonicalPath()+File.separator).toString();
@@ -77,7 +83,7 @@ public class DocMojo extends AbstractMojo{
                 this.getLog().info("has no classes load");
                 return;
             }
-            HmlParser.generate(targetFile, classes, "");
+            HmlParser.generate(targetFile, classes, host);
             this.getLog().info("generate api doc success!");
         } catch (IOException e) {
             e.printStackTrace();

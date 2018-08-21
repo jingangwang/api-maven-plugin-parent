@@ -38,13 +38,13 @@ public @interface Api {
      * 入参数组
      * @return
      */
-    Rule [] params() default {};
+    Column[] params() default {};
 
     /**
      * 返回值数组
      * @return
      */
-    Rule [] returns() default {};
+    Column[] returns() default {};
 
     /**
      * 请求示例
